@@ -1,0 +1,70 @@
+---
+title: "Day3RExercise_Sharon"
+author: "Sharon"
+date: "9/19/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import the data
+```{r}
+generation <- read.csv(here::here("data", "generation.csv"), stringsAsFactors = F)
+imports <- read.csv(here::here("data", "imports.csv"), stringsAsFactors = F)
+library(lubridate)
+generation$datetime <- as_datetime(generation$datetime)
+imports$datetime <- as_datetime(imports$datetime)
+```
+
+## Melt the data
+```{r}
+library(reshape2)
+long_gen <- melt(generation, id.vars='datetime', variable.name = 'source',
+                 value.name ='usage')
+head(long_gen)
+long_gen[order(long_gen$datetime),]
+```
+
+## Merge data
+```{r}
+merged_energy <- merge(generation, imports, by = "datetime")
+long_merged_energy <- melt(merged_energy, id.vars='datetime', variable.name='source', value.name='usage')
+head(long_merged_energy)
+```
+
+## dplyr
+```{r}
+library(dplyr)
+tmp <- select(merged_energy, biogas, biomass, geothermal, solar)
+names(tmp)
+tmp <- filter(merged_energy, imports > 1000)
+nrow(tmp)
+tmp <- mutate(long_merged_energy, log_usage=log(usage))
+head(tmp)
+summarize(long_merged_energy, total=sum(usage, na.rm=T))
+
+long_merged_energy %>%
+  filter(source=='geothermal') %>%
+  select(-datetime) %>%
+  mutate(log_usage = log(usage)) %>%
+  summarize(mean_log_usage = mean(log_usage, na.rm=T))
+```
+
+## dplyr try
+```{r}
+merged_energy %>%
+  select(contains('hydro')) %>%
+  mutate(total_hydro=rowSums(., na.rm=T)) %>%
+  summarize(mean_total_hydro = mean(total_hydro, na.rm=T))
+```
+
+## group by
+```{r}
+merged_energy %>%
+  select(datetime, contains('hydro'), biogas, biomass) %>%
+  melt(id.vars= 'datetime', variable.name= 'source', value.name= 'usage') %>%
+  group_by(source) %>%
+  summarize(mean_usage = mean(usage, na.rm=T))
+```
